@@ -39,6 +39,15 @@ require("clangd_extensions").setup {
             parameter_hints_prefix = "<- ",
             -- prefix for all the other hints (type, chaining)
             other_hints_prefix = "=> ",
+            -- function to generate the label from origin label and prefix
+            -- eg:
+            --   function(text, prefix)
+            --     if text:sub(1, 2) == "->" then
+            --       return prefix .. text
+            --     end
+            --     return text
+            --   end
+            other_hints_label_maker = nil,
             -- whether to align to the length of the longest line in the file
             max_len_align = false,
             -- padding from the left if max_len_align is true
@@ -47,6 +56,8 @@ require("clangd_extensions").setup {
             right_align = false,
             -- padding from the right if right_align is true
             right_align_padding = 7,
+            -- whether to render the extreme inline or not
+            inline = false,
             -- The color of the hints
             highlight = "Comment",
             -- The highlight group priority for extmark

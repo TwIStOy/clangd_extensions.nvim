@@ -117,6 +117,21 @@ local function parseHints(result)
     return map
 end
 
+local function get_virt_text_pos()
+  local conf = config.options.extensions.inlay_hints
+  if conf.inline and conf.right_align then
+    vim.notify('clangd_extensions: inlay_hints: inline and right_align are mutually exclusive', vim.log.levels.WARN)
+  end
+
+  if conf.inline then
+    return 'inline'
+  elseif conf.right_align then
+    return 'right_align'
+  else
+    return 'eol'
+  end
+end
+
 local function handler(err, result, ctx)
     if err then
         return
@@ -130,6 +145,32 @@ local function handler(err, result, ctx)
 
     -- clean it up at first
     M.disable_inlay_hints()
+
+    local virt_text_pos = get_virt_text_pos()
+    if virt_text_pos == 'inline' then
+        -- inline pos can be rendered immediately
+        for _, hint in ipairs(result) do
+            vim.print(hint)
+            local line = hint.position.line
+            local col = hint.position.character
+            local text = hint.label
+            if hint.kind == 'parameter' then
+                text = config.options.extensions.inlay_hints.parameter_hints_prefix .. text
+            else
+                if config.options.extensions.inlay_hints.other_hints_label_maker ~= nil then
+                  text = config.options.extensions.inlay_hints.other_hints_label_maker(
+                    text, config.options.extensions.inlay_hints.other_hints_prefix)
+                end
+            end
+            vim.api.nvim_buf_set_extmark(bufnr, namespace, line, col, {
+                virt_text_pos = 'inline',
+                virt_text = { { text, config.options.extensions.inlay_hints.highlight } },
+                hl_mode = 'combine',
+                priority = config.options.extensions.inlay_hints.priority,
+            })
+        end
+        return
+    end
 
     local ret = parseHints(result)
     local max_len = -1
@@ -207,8 +248,7 @@ local function handler(err, result, ctx)
 
             -- set the virtual text
             vim.api.nvim_buf_set_extmark(bufnr, namespace, line, 0, {
-                virt_text_pos = config.options.extensions.inlay_hints.right_align and "right_align"
-                    or "eol",
+                virt_text_pos = virt_text_pos,
                 virt_text = {
                     { virt_text, config.options.extensions.inlay_hints.highlight },
                 },
