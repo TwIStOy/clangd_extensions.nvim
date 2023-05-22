@@ -150,7 +150,6 @@ local function handler(err, result, ctx)
     if virt_text_pos == 'inline' then
         -- inline pos can be rendered immediately
         for _, hint in ipairs(result) do
-            vim.print(hint)
             local line = hint.position.line
             local col = hint.position.character
             local text = hint.label
