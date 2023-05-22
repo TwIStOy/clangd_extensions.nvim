@@ -132,6 +132,25 @@ local function get_virt_text_pos()
   end
 end
 
+local function format_label(hint)
+    local opts = config.options.extensions.inlay_hints
+    local text = hint.label
+    if hint.kind == 'parameter' then
+        if opts.parameter_hints_formatter ~= nil then
+          text = opts.parameter_hints_formatter(text, opts.parameter_hints_prefix)
+        else
+          text = opts.parameter_hints_prefix .. text
+        end
+    else
+        if opts.other_hints_formatter ~= nil then
+          text = opts.other_hints_formatter(text, opts.other_hints_prefix)
+        else
+          text = opts.other_hints_formatter(text, opts.other_hints_prefix)
+        end
+    end
+    return text
+end
+
 local function handler(err, result, ctx)
     if err then
         return
@@ -152,15 +171,7 @@ local function handler(err, result, ctx)
         for _, hint in ipairs(result) do
             local line = hint.position.line
             local col = hint.position.character
-            local text = hint.label
-            if hint.kind == 'parameter' then
-                text = config.options.extensions.inlay_hints.parameter_hints_prefix .. text
-            else
-                if config.options.extensions.inlay_hints.other_hints_label_maker ~= nil then
-                  text = config.options.extensions.inlay_hints.other_hints_label_maker(
-                    text, config.options.extensions.inlay_hints.other_hints_prefix)
-                end
-            end
+            local text = format_label(hint)
             vim.api.nvim_buf_set_extmark(bufnr, namespace, line, col, {
                 virt_text_pos = 'inline',
                 virt_text = { { text, config.options.extensions.inlay_hints.highlight } },
@@ -198,13 +209,9 @@ local function handler(err, result, ctx)
             -- segregate paramter hints and other hints
             for _, value_inner in ipairs(value) do
                 if value_inner.kind == "parameter" then
-                    table.insert(param_hints, value_inner.label:sub(1, -3))
+                    table.insert(param_hints, format_label(value_inner))
                 else
-                    local hint_text = value_inner.label
-                    if hint_text:sub(1, 2) == ": " then
-                        hint_text = hint_text:sub(3)
-                    end
-                    table.insert(other_hints, hint_text)
+                    table.insert(other_hints, format_label(value_inner))
                 end
             end
 

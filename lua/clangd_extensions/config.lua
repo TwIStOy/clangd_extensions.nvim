@@ -8,8 +8,16 @@ local defaults = {
             only_current_line_autocmd = "CursorHold",
             show_parameter_hints = true,
             parameter_hints_prefix = "<- ",
+            parameter_hints_formatter = function(label, prefix)
+              return prefix .. label:sub(1, -3)
+            end,
             other_hints_prefix = "=> ",
-            other_hints_label_maker = nil,
+            other_hints_formatter = function(label, prefix)
+              if label:sub(1, 2) == ": " then
+                return prefix .. label:sub(3)
+              end
+              return prefix .. label
+            end,
             max_len_align = false,
             max_len_align_padding = 1,
             inline = false,
