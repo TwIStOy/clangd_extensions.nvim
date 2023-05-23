@@ -118,18 +118,12 @@ local function parseHints(result)
 end
 
 local function get_virt_text_pos()
-  local conf = config.options.extensions.inlay_hints
-  if conf.inline and conf.right_align then
-    vim.notify('clangd_extensions: inlay_hints: inline and right_align are mutually exclusive', vim.log.levels.WARN)
-  end
-
-  if conf.inline then
-    return 'inline'
-  elseif conf.right_align then
-    return 'right_align'
-  else
-    return 'eol'
-  end
+    local opts = config.options.extensions.inlay_hints
+    if opts.right_align then
+        return 'right_align'
+    else
+        return 'eol'
+    end
 end
 
 local function format_label(hint)
@@ -151,6 +145,35 @@ local function format_label(hint)
     return text
 end
 
+local function filter_inlines(hints)
+    local opts = config.options.extensions.inlay_hints
+    local only_current_line = opts.only_current_line
+    local current_line = vim.api.nvim_win_get_cursor(0)[1]
+    local result = {}
+    local not_inline_hints = {}
+
+    local function is_inline(hint)
+        return (hint.kind == 'parameter' and opts.parameter_hints_inline) or
+            (hint.kind ~= 'parameter' and opts.other_hints_inline)
+    end
+
+    -- in `inline` mode, the hints position has been provided by clangd
+    for _, hint in ipairs(hints) do
+        if is_inline(hint) then
+            if only_current_line then
+                if tonumber(hint.position.line) == current_line - 1 then
+                    result[#result+1] = hint
+                end
+            else
+                result[#result+1] = hint
+            end
+        else
+            not_inline_hints[#not_inline_hints+1] = hint
+        end
+    end
+    return result, not_inline_hints
+end
+
 local function handler(err, result, ctx)
     if err then
         return
@@ -165,24 +188,26 @@ local function handler(err, result, ctx)
     -- clean it up at first
     M.disable_inlay_hints()
 
-    local virt_text_pos = get_virt_text_pos()
-    if virt_text_pos == 'inline' then
-        -- inline pos can be rendered immediately
-        for _, hint in ipairs(result) do
-            local line = hint.position.line
-            local col = hint.position.character
-            local text = format_label(hint)
-            vim.api.nvim_buf_set_extmark(bufnr, namespace, line, col, {
-                virt_text_pos = 'inline',
-                virt_text = { { text, config.options.extensions.inlay_hints.highlight } },
-                hl_mode = 'combine',
-                priority = config.options.extensions.inlay_hints.priority,
-            })
-        end
-        return
+    local inlines, not_inlines = filter_inlines(result)
+
+    -- inline pos can be rendered immediately
+    for _, hint in ipairs(inlines) do
+        local line = hint.position.line
+        local col = hint.position.character
+        local text = format_label(hint)
+        vim.api.nvim_buf_set_extmark(bufnr, namespace, line, col, {
+            virt_text_pos = 'inline',
+            virt_text = { { text, config.options.extensions.inlay_hints.highlight } },
+            hl_mode = 'combine',
+            priority = config.options.extensions.inlay_hints.priority,
+        })
+        -- update state
+        enabled = true
     end
 
-    local ret = parseHints(result)
+    -- merge not_inline_hints with the same line number
+    local virt_text_pos = get_virt_text_pos()
+    local ret = parseHints(not_inlines)
     local max_len = -1
 
     for key, _ in pairs(ret) do

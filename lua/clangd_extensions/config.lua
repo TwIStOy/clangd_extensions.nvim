@@ -8,19 +8,20 @@ local defaults = {
             only_current_line_autocmd = "CursorHold",
             show_parameter_hints = true,
             parameter_hints_prefix = "<- ",
-            parameter_hints_formatter = function(label, prefix)
-              return prefix .. label:sub(1, -3)
+            parameter_hints_formatter = function(label)
+                return label:sub(1, -3)
             end,
+            parameter_hints_inline = false,
             other_hints_prefix = "=> ",
-            other_hints_formatter = function(label, prefix)
-              if label:sub(1, 2) == ": " then
-                return prefix .. label:sub(3)
-              end
-              return prefix .. label
+            other_hints_formatter = function(label)
+                if label:sub(1, 2) == ": " then
+                    return label:sub(3)
+                end
+                return label
             end,
+            other_hints_inline = false,
             max_len_align = false,
             max_len_align_padding = 1,
-            inline = false,
             right_align = false,
             right_align_padding = 7,
             highlight = "Comment",
